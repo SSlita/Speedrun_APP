@@ -32,7 +32,10 @@ const GuideCard = ({ guide, setGuides }) => {
   return (
     <Card>
       {guide.steps.map((step) => (
-        <Step key={step.order}>
+        <Step
+          key={step.order}
+          id={`${guide._id}-${step.title.replace(/\s+/g, "-")}`}
+        >
           <StepTitle>{step.title}</StepTitle>
           <StepContent>{step.content}</StepContent>
 

@@ -13,6 +13,7 @@ import {
   StatusMessage,
   GuidesGrid
 } from "../styles/GuidePage.styles";
+import TableOfContent from "../components/TableOfContent";
 
 const GuidePage = () => {
   const { categoryId } = useParams();
@@ -63,17 +64,24 @@ const GuidePage = () => {
       )}
 
       {guides.length > 0 && (
-        <GuidesGrid>
-          {guides.map((guide) => (
-            <GuideCard
-              key={guide._id}
-              guide={guide}
-              setGuides={setGuides}
-            />
-          ))}
-        </GuidesGrid>
+        <>
+          <TableOfContent
+            guides={guides}
+          />
+
+          <GuidesGrid>
+            {guides.map((guide) => (
+              <GuideCard
+                key={guide._id}
+                guide={guide}
+                setGuides={setGuides}
+              />
+            ))}
+          </GuidesGrid>
+        </>
       )}
     </PageContainer>
+
   );
 };
 
