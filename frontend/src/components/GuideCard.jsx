@@ -47,6 +47,7 @@ const GuideCard = ({ guide, setGuides }) => {
       {(guide.sections ?? []).map((section) => (
         <Accordion key={section._id}>
           <AccordionSummary
+            id={`${section._id}`}
             expandIcon={<ExpandMoreIcon />}
           >
             <StepTitle>{section.title}</StepTitle>
@@ -58,14 +59,14 @@ const GuideCard = ({ guide, setGuides }) => {
                 id={`${section._id}-${step.order}`}
               >
                 <StepContent>{step.content}</StepContent>
-                {step.mediaType === "image" && (
+                {step.mediaType === "image" && step.mediaUrl && (
                   <Image
                     src={step.mediaUrl}
                     loading="lazy"
                     alt={step.mediaUrl}
                   />
                 )}
-                {step.mediaType === "video" && (
+                {step.mediaType === "video" && step.mediaUrl && (
                   <Video
                     src={step.mediaUrl}
                     autoPlay

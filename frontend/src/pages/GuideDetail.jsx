@@ -27,6 +27,8 @@ import {
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
+// Séparateur unique qui ne peut pas apparaître dans un ObjectId MongoDB
+const KEY_SEP = "::";
 
 const GuideDetail = () => {
   const [guide, setGuide] = useState(null);
@@ -115,7 +117,6 @@ const GuideDetail = () => {
   const sanitizeFolderName = (name) =>
     name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
-  // Modifie un champ d'un step via sectionId + stepId
   const handleStepChange = (sectionId, stepId, field, value) => {
     setGuide((prev) => ({
       ...prev,
@@ -130,6 +131,9 @@ const GuideDetail = () => {
     }));
   };
 
+  // Clé unique combinant sectionId et stepId avec un séparateur sûr
+  const makeKey = (sectionId, stepId) => `${sectionId}${KEY_SEP}${stepId}`;
+
   const handleFileChange = (sectionId, stepId, file) => {
     if (!file) return;
 
@@ -141,7 +145,7 @@ const GuideDetail = () => {
       return;
     }
 
-    const key = `${sectionId}-${stepId}`;
+    const key = makeKey(sectionId, stepId);
     setNewMediaFiles((prev) => ({ ...prev, [key]: file }));
 
     if (isImage) {
@@ -197,30 +201,43 @@ const GuideDetail = () => {
     setUploading(true);
 
     try {
-      // Pour chaque fichier uploadé, on met à jour le step correspondant
+      // Construire une map stepId -> newUrl pour les fichiers uploadés
+      const uploadedUrls = {};
+
       for (const [key, file] of Object.entries(newMediaFiles)) {
-        const [sectionId, stepId] = key.split("-");
+        // Séparer sectionId et stepId avec le séparateur sûr
+        const sepIndex = key.indexOf(KEY_SEP);
+        const sectionId = key.slice(0, sepIndex);
+        const stepId = key.slice(sepIndex + KEY_SEP.length);
+
         const section = guide.sections.find((s) => s._id === sectionId);
         const step = section?.steps.find((s) => s._id === stepId);
 
-        if (step?.mediaUrl) await deleteFromCloudinary(step.mediaUrl);
+        if (!step || !stepId) {
+          console.error("Step introuvable pour la clé:", key, "sectionId:", sectionId, "stepId:", stepId);
+          continue;
+        }
+
+        if (step.mediaUrl) await deleteFromCloudinary(step.mediaUrl);
 
         const type = file.type.startsWith("video/") ? "video" : "image";
         const newUrl = await uploadToCloudinary(file, type);
 
-        // Sauvegarde le step individuellement
-        await api.put(`/steps/${stepId}`, { mediaUrl: newUrl, mediaType: type });
+        uploadedUrls[stepId] = { mediaUrl: newUrl, mediaType: type };
         toast.success("Média uploadé");
       }
 
-      // Sauvegarde les champs texte de chaque step
+      // Sauvegarder sections et steps
       for (const section of guide.sections) {
         await api.put(`/sections/${section._id}`, { title: section.title });
+
         for (const step of section.steps) {
+          // Si un nouveau média a été uploadé pour ce step, utiliser la nouvelle URL
+          const uploaded = uploadedUrls[step._id];
           await api.put(`/steps/${step._id}`, {
             content: step.content,
-            mediaType: step.mediaType,
-            mediaUrl: step.mediaUrl,
+            mediaType: uploaded ? uploaded.mediaType : step.mediaType,
+            mediaUrl: uploaded ? uploaded.mediaUrl : step.mediaUrl,
           });
         }
       }
@@ -258,7 +275,6 @@ const GuideDetail = () => {
           <div key={section._id}>
             <StepHeader>{section.title}</StepHeader>
 
-            {/* Titre de la section */}
             <Field>
               <Label>Titre de la section</Label>
               <Input
@@ -274,9 +290,8 @@ const GuideDetail = () => {
               />
             </Field>
 
-            {/* Steps de la section */}
             {(section.steps ?? []).map((step) => {
-              const key = `${section._id}-${step._id}`;
+              const key = makeKey(section._id, step._id);
               return (
                 <StepCard key={step._id}>
                   <Field>
@@ -317,7 +332,7 @@ const GuideDetail = () => {
                         onChange={(e) => handleFileChange(section._id, step._id, e.target.files[0])}
                         disabled={uploading}
                       />
-                      {step.mediaType === "image" && (
+                      {step.mediaType === "image" && (mediaPreviews[key] || step.mediaUrl) && (
                         <ImagePreview
                           src={mediaPreviews[key] || step.mediaUrl}
                           alt={step.content}
@@ -325,6 +340,7 @@ const GuideDetail = () => {
                       )}
                     </Field>
                   )}
+
                   <Actions>
                     <IconButton onClick={(e) => handleDeleteStep(e, step._id, section._id)}>
                       <Trash2Icon size={18} />
@@ -333,6 +349,7 @@ const GuideDetail = () => {
                 </StepCard>
               );
             })}
+
             <button onClick={() => handleAddStep(section._id)}>
               + Ajouter une étape
             </button>
