@@ -24,10 +24,17 @@ const GuideCreation = ({ categoryId }) => {
   const [preview, setPreview] = useState(null);
   const [gameTitle, setGameTitle] = useState("");
   const [categoryTitle, setCategoryTitle] = useState("");
+  const [guideId, setGuideId] = useState(null);
+  const [sections, setSections] = useState([]);
   
-  const [step, setStep] = useState({
-    order: 1,
+  const [creationType, setCreationType] = useState("section");
+
+  const [newSection, setNewSection] = useState({
     title: "",
+  });
+
+  const [newStep, setNewStep] = useState({
+    sectionId: "",
     content: "",
     mediaType: "none",
     mediaUrl: "",
@@ -50,6 +57,22 @@ const GuideCreation = ({ categoryId }) => {
     
     fetchCategoryAndGame();
   }, [categoryId]);
+
+  // Charger les sections du guide une fois qu'il est créé
+  useEffect(() => {
+    if (!guideId) return;
+
+    const fetchSections = async () => {
+      try {
+        const res = await api.get(`/sections/guide/${guideId}`);
+        setSections(res.data);
+      } catch (error) {
+        console.error("Erreur récupération sections:", error);
+      }
+    };
+
+    fetchSections();
+  }, [guideId]);
 
   const sanitizeFolderName = (name) =>
     name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -93,12 +116,6 @@ const GuideCreation = ({ categoryId }) => {
     const detectedType = isVideo ? "video" : "image";
     const subFolder = isVideo ? "videos" : "guideImg";
 
-    setStep({
-      ...step,
-      mediaType: detectedType,
-      mediaUrl: ""
-    });
-
     if (isImage) {
       setPreview(URL.createObjectURL(file));
     }
@@ -108,61 +125,107 @@ const GuideCreation = ({ categoryId }) => {
     try {
       const folderName = sanitizeFolderName(gameTitle);
       const categoryName = sanitizeFolderName(categoryTitle);
-
-      console.log(`📤 Upload vers: ${folderName}/${subFolder}`);
-
       const url = await uploadToCloudinary(file, folderName, subFolder, detectedType, categoryName);
       
-      setStep(prev => ({
+      setNewStep(prev => ({
         ...prev,
-        mediaUrl: url
+        mediaUrl: url,
+        mediaType: detectedType
       }));
 
-      toast.success(`${isVideo ? 'Vidéo' : 'Image'} uploadée avec succès !`);
-      console.log("✅ URL:", url);
-
+      toast.success(`${isVideo ? 'Vidéo' : 'Image'} uploadée !`);
     } catch (error) {
       console.error("Erreur upload:", error);
       toast.error("Échec de l'upload");
       setPreview(null);
-      setStep(prev => ({
-        ...prev,
-        mediaType: "none",
-        mediaUrl: ""
-      }));
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Créer le guide si pas encore créé
+  const ensureGuideExists = async () => {
+    if (guideId) return guideId;
+
+    try {
+      const res = await api.post("/guides", { categoryId });
+      setGuideId(res.data._id);
+      toast.success("Guide créé !");
+      return res.data._id;
+    } catch (error) {
+      toast.error("Erreur création du guide");
+      throw error;
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!step.content.trim()) {
-      toast.error("Le contenu est requis");
-      return;
-    }
+    if (creationType === "section") {
+      // Ajouter une section
+      if (!newSection.title.trim()) {
+        toast.error("Le titre de la section est requis");
+        return;
+      }
 
-    if (step.mediaType !== "none" && !step.mediaUrl.trim()) {
-      toast.error("Veuillez uploader un fichier média");
-      return;
-    }
+      setLoading(true);
+      try {
+        const currentGuideId = await ensureGuideExists();
 
-    setLoading(true);
+        const res = await api.post("/sections", {
+          guideId: currentGuideId,
+          title: newSection.title,
+          order: sections.length + 1,
+        });
 
-    try {
-      await api.post("/guides", {
-        categoryId,
-        steps: [step],
-      });
+        setSections([...sections, res.data]);
+        setNewSection({ title: "" });
+        toast.success("Section ajoutée !");
+      } catch (error) {
+        console.error(error);
+        toast.error("Erreur lors de l'ajout de la section");
+      } finally {
+        setLoading(false);
+      }
 
-      toast.success("Guide ajouté avec succès");
-      navigate(`/category/${categoryId}`);
-    } catch (error) {
-      console.error(error);
-      toast.error("Problème lors de l'ajout du guide");
-    } finally {
-      setLoading(false);
+    } else {
+      // Ajouter une étape
+      if (!newStep.sectionId) {
+        toast.error("Sélectionnez une section");
+        return;
+      }
+
+      if (!newStep.content.trim()) {
+        toast.error("Le contenu de l'étape est requis");
+        return;
+      }
+
+      setLoading(true);
+      try {
+        await ensureGuideExists();
+
+        await api.post("/steps", {
+          sectionId: newStep.sectionId,
+          order: 1,
+          content: newStep.content,
+          mediaType: newStep.mediaType,
+          mediaUrl: newStep.mediaUrl
+        });
+
+        setNewStep({
+          sectionId: newStep.sectionId, // Garde la section sélectionnée
+          content: "",
+          mediaType: "none",
+          mediaUrl: ""
+        });
+        setPreview(null);
+        toast.success("Étape ajoutée !");
+      } catch (error) {
+        console.error(error);
+        toast.error("Erreur lors de l'ajout de l'étape");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -176,104 +239,195 @@ const GuideCreation = ({ categoryId }) => {
       )}
 
       <Form onSubmit={handleSubmit}>
+        {/* Radio buttons pour choisir Section ou Étape */}
         <Field>
-          <Label>Titre de l'étape</Label>
-          <Input
-            type="text"
-            placeholder="Ex : Installer les dépendances"
-            value={step.title}
-            onChange={(e) =>
-              setStep({ ...step, title: e.target.value })
-            }
-          />
-        </Field>
-
-        <Field>
-          <Label>Contenu</Label>
-          <Textarea
-            rows={5}
-            placeholder="Explique clairement cette étape..."
-            value={step.content}
-            onChange={(e) =>
-              setStep({ ...step, content: e.target.value })
-            }
-          />
-        </Field>
-
-        <Field>
-          <Label>Média associé (optionnel)</Label>
-          <Select
-            value={step.mediaType}
-            onChange={(e) => {
-              setStep({
-                ...step,
-                mediaType: e.target.value,
-                mediaUrl: "",
-              });
-              setPreview(null);
-            }}
-          >
-            <option value="none">Aucun</option>
-            <option value="image">Image</option>
-            <option value="video">Vidéo</option>
-          </Select>
-        </Field>
-
-        {step.mediaType !== "none" && (
-          <Field>
-            <Label>
-              Uploader {step.mediaType === "image" ? "une image" : "une vidéo"}
-            </Label>
-            <input
-              type="file"
-              accept={step.mediaType === "image" ? "image/*" : "video/*"}
-              onChange={handleFileChange}
-              disabled={uploading || !gameTitle}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                marginBottom: '10px'
-              }}
-            />
-            
-            {uploading && (
-              <p style={{ color: '#666', fontSize: '14px' }}>
-                ⏳ Upload en cours...
-              </p>
-            )}
-
-            {preview && step.mediaType === "image" && (
-              <img
-                src={preview}
-                alt="Aperçu"
-                style={{
-                  width: "200px",
-                  marginTop: "8px",
-                  borderRadius: "6px",
-                  border: "2px solid #ddd"
-                }}
+          <Label>Que voulez-vous ajouter ?</Label>
+          <div style={{ display: 'flex', gap: '20px', marginTop: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                value="section"
+                checked={creationType === "section"}
+                onChange={(e) => setCreationType(e.target.value)}
+                style={{ marginRight: '8px' }}
               />
-            )}
+              <strong>📚 Section</strong> (titre uniquement)
+            </label>
 
-            {step.mediaUrl && (
-              <p style={{ color: 'green', fontSize: '14px', marginTop: '8px' }}>
-                ✅ Fichier uploadé avec succès
-              </p>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                value="step"
+                checked={creationType === "step"}
+                onChange={(e) => setCreationType(e.target.value)}
+                style={{ marginRight: '8px' }}
+                disabled={sections.length === 0}
+              />
+              <strong>📝 Étape</strong> (contenu + média)
+            </label>
+          </div>
+          {sections.length === 0 && (
+            <p style={{ color: '#999', fontSize: '14px', marginTop: '8px' }}>
+              ⚠️ Créez d'abord une section pour pouvoir ajouter des étapes
+            </p>
+          )}
+        </Field>
+
+        {/* Formulaire pour Section */}
+        {creationType === "section" && (
+          <>
+            <Field>
+              <Label>Titre de la section *</Label>
+              <Input
+                type="text"
+                placeholder="Ex: Installation, Configuration, Démarrage..."
+                value={newSection.title}
+                onChange={(e) => setNewSection({ title: e.target.value })}
+              />
+            </Field>
+          </>
+        )}
+
+        {/* Formulaire pour Étape */}
+        {creationType === "step" && (
+          <>
+            <Field>
+              <Label>Rattacher à la section *</Label>
+              <Select
+                value={newStep.sectionId}
+                onChange={(e) => setNewStep({ ...newStep, sectionId: e.target.value })}
+              >
+                <option value="">Choisissez une section</option>
+                {sections.map((section) => (
+                  <option key={section._id} value={section._id}>
+                    {section.title}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field>
+              <Label>Contenu de l'étape *</Label>
+              <Textarea
+                rows={5}
+                placeholder="Décrivez cette étape..."
+                value={newStep.content}
+                onChange={(e) => setNewStep({ ...newStep, content: e.target.value })}
+              />
+            </Field>
+
+            <Field>
+              <Label>Média (optionnel)</Label>
+              <Select
+                value={newStep.mediaType}
+                onChange={(e) => {
+                  setNewStep({
+                    ...newStep,
+                    mediaType: e.target.value,
+                    mediaUrl: "",
+                  });
+                  setPreview(null);
+                }}
+              >
+                <option value="none">Aucun</option>
+                <option value="image">Image</option>
+                <option value="video">Vidéo</option>
+              </Select>
+            </Field>
+
+            {newStep.mediaType !== "none" && (
+              <Field>
+                <Label>
+                  Uploader {newStep.mediaType === "image" ? "une image" : "une vidéo"}
+                </Label>
+                <input
+                  type="file"
+                  accept={newStep.mediaType === "image" ? "image/*" : "video/*"}
+                  onChange={handleFileChange}
+                  disabled={uploading || !gameTitle}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    marginBottom: '10px'
+                  }}
+                />
+                
+                {uploading && (
+                  <p style={{ color: '#666', fontSize: '14px' }}>
+                    ⏳ Upload en cours...
+                  </p>
+                )}
+
+                {preview && newStep.mediaType === "image" && (
+                  <img
+                    src={preview}
+                    alt="Aperçu"
+                    style={{
+                      width: "200px",
+                      marginTop: "8px",
+                      borderRadius: "6px",
+                      border: "2px solid #ddd"
+                    }}
+                  />
+                )}
+
+                {newStep.mediaUrl && (
+                  <p style={{ color: 'green', fontSize: '14px', marginTop: '8px' }}>
+                    ✅ Fichier uploadé
+                  </p>
+                )}
+              </Field>
             )}
-          </Field>
+          </>
         )}
 
         <SubmitButton 
           type="submit" 
-          disabled={loading || uploading || (step.mediaType !== "none" && !step.mediaUrl)}
+          disabled={loading || uploading || (creationType === "step" && newStep.mediaType !== "none" && !newStep.mediaUrl)}
         >
-          {loading ? "Création..." : 
+          {loading ? "Ajout en cours..." : 
            uploading ? "Upload en cours..." : 
-           "Créer le guide"}
+           creationType === "section" ? "➕ Ajouter la section" : "➕ Ajouter l'étape"}
         </SubmitButton>
+
+        {/* Bouton pour terminer */}
+        {sections.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              toast.success("Guide créé !");
+              navigate(`/category/${categoryId}`);
+            }}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              marginTop: '20px',
+              fontWeight: 'bold'
+            }}
+          >
+            ✅ Terminer et voir le guide
+          </button>
+        )}
       </Form>
+
+      {/* Aperçu des sections créées */}
+      {sections.length > 0 && (
+        <div style={{ marginTop: '30px', padding: '15px', background: '#f5f5f5', borderRadius: '8px' }}>
+          <h3>Sections créées :</h3>
+          <ul>
+            {sections.map((section) => (
+              <li key={section._id}>{section.title}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Card>
   );
 };

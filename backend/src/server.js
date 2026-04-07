@@ -5,6 +5,9 @@ import cors from "cors";
 import gameRoute from './routes/jeux.js';
 import categoryRoute from './routes/categories.js';
 import guideRoute from './routes/guides.js';
+import sectionRoute from './routes/sections.js';
+import stepRoute from './routes/steps.js';
+
 import cloudinaryRoute from './routes/cloudinary.js';
 
 import { connectDB } from './config/db.js';
@@ -29,6 +32,8 @@ app.use("/videos", express.static("src/upload/videos"));
 app.use("/api/jeux", gameRoute);
 app.use("/api/categories", categoryRoute);
 app.use("/api/guides", guideRoute);
+app.use("/api/sections", sectionRoute);
+app.use("/api/steps", stepRoute);
 
 app.use("/api/cloudinary", cloudinaryRoute);
 

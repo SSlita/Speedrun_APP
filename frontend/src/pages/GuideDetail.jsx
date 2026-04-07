@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import api from "../lib/axios";
 import toast from "react-hot-toast";
-import { ArrowLeftIcon, LoaderIcon } from "lucide-react";
+import { ArrowLeftIcon, LoaderIcon, Trash2Icon } from "lucide-react";
 
 import {
   PageContainer,
@@ -20,11 +20,13 @@ import {
   CancelLink,
   SaveButton,
   ImagePreview,
-  LoaderWrapper
+  LoaderWrapper,
+  IconButton
 } from "../styles/GuideDetail.styles";
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
 
 const GuideDetail = () => {
   const [guide, setGuide] = useState(null);
@@ -61,42 +63,95 @@ const GuideDetail = () => {
     fetchGuide();
   }, [guideId, navigate]);
 
+  const handleAddStep = async (sectionId) => {
+    try {
+      const section = guide.sections.find((s) => s._id === sectionId);
+      const newOrder = (section.steps?.length ?? 0) + 1;
+
+      const res = await api.post("/steps", {
+        sectionId,
+        order: newOrder,
+        content: "",
+        mediaType: "none",
+        mediaUrl: "",
+      });
+
+      setGuide((prev) => ({
+        ...prev,
+        sections: prev.sections.map((s) =>
+          s._id !== sectionId ? s : { ...s, steps: [...(s.steps ?? []), res.data] }
+        ),
+      }));
+
+      toast.success("Étape ajoutée");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur lors de l'ajout de l'étape");
+    }
+  };
+
+  const handleDeleteStep = async (e, stepId, sectionId) => {
+    if (!window.confirm("Voulez-vous supprimer cette étape ?")) return;
+    try {
+      await api.delete(`/steps/${stepId}`);
+
+      setGuide((prev) => ({
+        ...prev,
+        sections: prev.sections.map((s) =>
+          s._id !== sectionId ? s : {
+            ...s,
+            steps: s.steps.filter((step) => step._id !== stepId)
+          }
+        )
+      }));
+
+      toast.success("Étape supprimée");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
   const sanitizeFolderName = (name) =>
     name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
-  const handleStepChange = (index, field, value) => {
-    const updatedSteps = [...guide.steps];
-    updatedSteps[index] = { ...updatedSteps[index], [field]: value };
-    setGuide({ ...guide, steps: updatedSteps });
+  // Modifie un champ d'un step via sectionId + stepId
+  const handleStepChange = (sectionId, stepId, field, value) => {
+    setGuide((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) =>
+        section._id !== sectionId ? section : {
+          ...section,
+          steps: section.steps.map((step) =>
+            step._id !== stepId ? step : { ...step, [field]: value }
+          )
+        }
+      )
+    }));
   };
 
-  const handleFileChange = (index, file) => {
+  const handleFileChange = (sectionId, stepId, file) => {
     if (!file) return;
 
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
 
     if (!isImage && !isVideo) {
       toast.error("Format non supporté");
       return;
     }
 
-    setNewMediaFiles({ ...newMediaFiles, [index]: file });
+    const key = `${sectionId}-${stepId}`;
+    setNewMediaFiles((prev) => ({ ...prev, [key]: file }));
 
     if (isImage) {
-      setMediaPreviews({
-        ...mediaPreviews,
-        [index]: URL.createObjectURL(file)
-      });
+      setMediaPreviews((prev) => ({
+        ...prev,
+        [key]: URL.createObjectURL(file)
+      }));
     }
 
-    const updatedSteps = [...guide.steps];
-    updatedSteps[index] = {
-      ...updatedSteps[index],
-      mediaType: isVideo ? "video" : "image"
-    };
-    setGuide({ ...guide, steps: updatedSteps });
-
+    handleStepChange(sectionId, stepId, "mediaType", isVideo ? "video" : "image");
     toast.success("Fichier sélectionné, cliquez sur Sauvegarder pour uploader");
   };
 
@@ -118,63 +173,57 @@ const GuideDetail = () => {
 
     const data = await res.json();
     if (!res.ok) throw new Error("Upload échoué");
-
     return data.secure_url;
   };
 
   const deleteFromCloudinary = async (mediaUrl) => {
     if (!mediaUrl || !mediaUrl.includes("cloudinary.com")) return;
-
     try {
       const urlParts = mediaUrl.split("/upload/")[1];
       const pathWithoutVersion = urlParts.replace(/^v\d+\//, "");
       const publicId = pathWithoutVersion.replace(/\.[^.]+$/, "");
-
       const isVideo = mediaUrl.includes("/video/upload/");
-
       await api.post("/cloudinary/delete", {
         publicId,
         resourceType: isVideo ? "video" : "image"
       });
-
-      console.log("Ancien média supprimé:", publicId);
     } catch (error) {
       console.log("Erreur suppression média:", error);
     }
   };
 
   const handleSave = async () => {
-    if (!guide.steps.length) {
-      toast.error("Ajoutez au moins une étape");
-      return;
-    }
-
     setSaving(true);
     setUploading(true);
 
     try {
-      const updatedSteps = [...guide.steps];
+      // Pour chaque fichier uploadé, on met à jour le step correspondant
+      for (const [key, file] of Object.entries(newMediaFiles)) {
+        const [sectionId, stepId] = key.split("-");
+        const section = guide.sections.find((s) => s._id === sectionId);
+        const step = section?.steps.find((s) => s._id === stepId);
 
-      for (const [indexStr, file] of Object.entries(newMediaFiles)) {
-        const index = parseInt(indexStr);
-        const step = updatedSteps[index];
+        if (step?.mediaUrl) await deleteFromCloudinary(step.mediaUrl);
 
-        if (step.mediaUrl) {
-          await deleteFromCloudinary(step.mediaUrl);
-        }
-
-        const type = file.type.startsWith('video/') ? "video" : "image";
+        const type = file.type.startsWith("video/") ? "video" : "image";
         const newUrl = await uploadToCloudinary(file, type);
 
-        updatedSteps[index] = {
-          ...step,
-          mediaUrl: newUrl
-        };
-
-        toast.success(`Média de l'étape ${step.order} uploadé`);
+        // Sauvegarde le step individuellement
+        await api.put(`/steps/${stepId}`, { mediaUrl: newUrl, mediaType: type });
+        toast.success("Média uploadé");
       }
 
-      await api.put(`/guides/${guideId}`, { steps: updatedSteps });
+      // Sauvegarde les champs texte de chaque step
+      for (const section of guide.sections) {
+        await api.put(`/sections/${section._id}`, { title: section.title });
+        for (const step of section.steps) {
+          await api.put(`/steps/${step._id}`, {
+            content: step.content,
+            mediaType: step.mediaType,
+            mediaUrl: step.mediaUrl,
+          });
+        }
+      }
 
       toast.success("Guide mis à jour");
       navigate(-1);
@@ -205,96 +254,95 @@ const GuideDetail = () => {
       <Card>
         <Title>Modifier le guide</Title>
 
-        {guide.steps.map((step, index) => (
-          <StepCard key={index}>
-            <StepHeader>Étape {step.order}</StepHeader>
+        {(guide.sections ?? []).map((section) => (
+          <div key={section._id}>
+            <StepHeader>{section.title}</StepHeader>
 
+            {/* Titre de la section */}
             <Field>
-              <Label>Titre</Label>
+              <Label>Titre de la section</Label>
               <Input
-                value={step.title}
+                value={section.title}
                 onChange={(e) =>
-                  handleStepChange(index, "title", e.target.value)
+                  setGuide((prev) => ({
+                    ...prev,
+                    sections: prev.sections.map((s) =>
+                      s._id !== section._id ? s : { ...s, title: e.target.value }
+                    )
+                  }))
                 }
               />
             </Field>
 
-            <Field>
-              <Label>Description</Label>
-              <Textarea
-                rows={4}
-                value={step.content}
-                onChange={(e) =>
-                  handleStepChange(index, "content", e.target.value)
-                }
-              />
-            </Field>
+            {/* Steps de la section */}
+            {(section.steps ?? []).map((step) => {
+              const key = `${section._id}-${step._id}`;
+              return (
+                <StepCard key={step._id}>
+                  <Field>
+                    <Label>Contenu</Label>
+                    <Textarea
+                      rows={4}
+                      value={step.content}
+                      onChange={(e) =>
+                        handleStepChange(section._id, step._id, "content", e.target.value)
+                      }
+                    />
+                  </Field>
 
-            <Field>
-              <Label>Média</Label>
-              <Select
-                value={step.mediaType || "none"}
-                onChange={(e) => {
-                  handleStepChange(index, "mediaType", e.target.value);
-                  if (e.target.value === "none") {
-                    const newFiles = { ...newMediaFiles };
-                    delete newFiles[index];
-                    setNewMediaFiles(newFiles);
-                    
-                    const newPreviews = { ...mediaPreviews };
-                    delete newPreviews[index];
-                    setMediaPreviews(newPreviews);
-                  }
-                }}
-              >
-                <option value="none">Aucun</option>
-                <option value="image">Image</option>
-                <option value="video">Vidéo</option>
-              </Select>
-            </Field>
+                  <Field>
+                    <Label>Média</Label>
+                    <Select
+                      value={step.mediaType || "none"}
+                      onChange={(e) => {
+                        handleStepChange(section._id, step._id, "mediaType", e.target.value);
+                        if (e.target.value === "none") {
+                          setNewMediaFiles((prev) => { const n = { ...prev }; delete n[key]; return n; });
+                          setMediaPreviews((prev) => { const n = { ...prev }; delete n[key]; return n; });
+                        }
+                      }}
+                    >
+                      <option value="none">Aucun</option>
+                      <option value="image">Image</option>
+                      <option value="video">Vidéo</option>
+                    </Select>
+                  </Field>
 
-            {step.mediaType !== "none" && (
-              <Field>
-                <Label>
-                  Changer le {step.mediaType === "image" ? "l'image" : "la vidéo"}
-                </Label>
-                <input
-                  type="file"
-                  accept={step.mediaType === "image" ? "image/*" : "video/*"}
-                  onChange={(e) => handleFileChange(index, e.target.files[0])}
-                  disabled={uploading}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    marginBottom: '10px'
-                  }}
-                />
-
-                {step.mediaType === "image" && (
-                  <ImagePreview
-                    src={mediaPreviews[index] || step.mediaUrl}
-                    alt={step.title}
-                  />
-                )}
-
-                {newMediaFiles[index] && (
-                  <p style={{ color: 'orange', fontSize: '14px', marginTop: '8px' }}>
-                    ⚠️ Nouveau fichier sélectionné, cliquez sur Sauvegarder pour uploader
-                  </p>
-                )}
-              </Field>
-            )}
-          </StepCard>
+                  {step.mediaType !== "none" && (
+                    <Field>
+                      <Label>Changer le média</Label>
+                      <input
+                        type="file"
+                        accept={step.mediaType === "image" ? "image/*" : "video/*"}
+                        onChange={(e) => handleFileChange(section._id, step._id, e.target.files[0])}
+                        disabled={uploading}
+                      />
+                      {step.mediaType === "image" && (
+                        <ImagePreview
+                          src={mediaPreviews[key] || step.mediaUrl}
+                          alt={step.content}
+                        />
+                      )}
+                    </Field>
+                  )}
+                  <Actions>
+                    <IconButton onClick={(e) => handleDeleteStep(e, step._id, section._id)}>
+                      <Trash2Icon size={18} />
+                    </IconButton>
+                  </Actions>
+                </StepCard>
+              );
+            })}
+            <button onClick={() => handleAddStep(section._id)}>
+              + Ajouter une étape
+            </button>
+          </div>
         ))}
 
         <Actions>
           <CancelLink to={-1}>Annuler</CancelLink>
           <SaveButton disabled={saving || uploading} onClick={handleSave}>
-            {uploading ? "Upload en cours..." : 
-             saving ? "Sauvegarde..." : 
-             "Sauvegarder"}
+            {uploading ? "Upload en cours..." : saving ? "Sauvegarde..." : "Sauvegarder"}
           </SaveButton>
         </Actions>
       </Card>

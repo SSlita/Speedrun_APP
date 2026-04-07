@@ -118,3 +118,21 @@ export const LoaderWrapper = styled.div`
   align-items: center;
   justify-content: center;
 `;
+
+export const IconButton = styled.button`
+  background-color: #0b0e14;
+  border: none;
+  border-radius: 10px;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: #9ca3af;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: #1f2937;
+    color: #ffffff;
+  }
+`;
