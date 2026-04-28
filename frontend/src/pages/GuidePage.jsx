@@ -13,6 +13,8 @@ import {
   StatusMessage,
   GuidesGrid
 } from "../styles/GuidePage.styles";
+import { ContentLayout } from "../styles/GuidePage.styles";
+
 import TableOfContent from "../components/TableOfContent";
 
 const GuidePage = () => {
@@ -64,11 +66,8 @@ const GuidePage = () => {
       )}
 
       {guides.length > 0 && (
-        <>
-          <TableOfContent
-            guides={guides}
-          />
-
+        <ContentLayout>
+          <TableOfContent guides={guides} />
           <GuidesGrid>
             {guides.map((guide) => (
               <GuideCard
@@ -78,7 +77,7 @@ const GuidePage = () => {
               />
             ))}
           </GuidesGrid>
-        </>
+        </ContentLayout>
       )}
     </PageContainer>
 

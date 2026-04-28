@@ -1,4 +1,6 @@
 import styled from "styled-components";
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
 
 export const Card = styled.article`
   background-color: #161a23;
@@ -17,23 +19,21 @@ export const Card = styled.article`
   }
 `;
 
-
 export const Step = styled.section`
-  background-color: #0b0e14;
-  border-left: 3px solid #3b82f6;
   padding: 1.25rem 1.5rem;
-  border-radius: 12px;
+  
+  &:not(:last-child) {
+    border-bottom: 2px solid white;
+  }
 `;
-
 
 export const StepTitle = styled.h3`
   font-size: 1.2rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: #e5e7eb;
   letter-spacing: 0.03em;
+  text-align: center;
 `;
-
 
 export const StepContent = styled.p`
   font-size: 1rem;
@@ -42,15 +42,12 @@ export const StepContent = styled.p`
   white-space: pre-line;
 `;
 
-
 const mediaStyle = `
-  
   border-radius: 12px;
   margin-top: 1rem;
   object-fit: cover;
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 `;
-
 
 export const Image = styled.img`
   ${mediaStyle}
@@ -68,17 +65,16 @@ export const Actions = styled.div`
   justify-content: flex-end;
   gap: 0.75rem;
   padding-top: 1.25rem;
-  border-top: 1px solid #1f2937;
 `;
-
 
 export const IconButton = styled.button`
   background-color: #0b0e14;
   border: none;
   border-radius: 10px;
-  padding: 0.5rem;
+  padding: 0.8rem;
   cursor: pointer;
   color: #9ca3af;
+  margin: 0.5rem;
 
   display: flex;
   align-items: center;
@@ -90,5 +86,24 @@ export const IconButton = styled.button`
   }
 `;
 
+export const StyledAccordion = styled(Accordion)`
+  background-color: #0b0e14 !important;
+  color: #e5e7eb !important;
+`;
 
+export const StyledSummaryAccordion = styled(AccordionSummary)`
+  color: #e5e7eb;
 
+  .MuiAccordionSummary-expandIconWrapper {
+    color: #e5e7eb;
+  }
+
+  .MuiAccordionSummary-expandIconWrapper.Mui-expanded {
+    color: #e5e7eb;
+  }
+
+  /* Centrer le contenu du summary */
+  .MuiAccordionSummary-content {
+    justify-content: center;
+  }
+`;

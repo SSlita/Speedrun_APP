@@ -2,21 +2,10 @@ import { PenSquareIcon, Trash2Icon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 import api from "../lib/axios";
-import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-import {
-  Card,
-  Step,
-  StepTitle,
-  StepContent,
-  Image,
-  Video,
-  Actions,
-  IconButton
-} from "../styles/GuideCard.styles";
+import * as S from "../styles/GuideCard.styles";
 
 
 const GuideCard = ({ guide, setGuides }) => {
@@ -43,31 +32,31 @@ const GuideCard = ({ guide, setGuides }) => {
   });
 
   return (
-    <Card>
+    <>
       {(guide.sections ?? []).map((section) => (
-        <Accordion key={section._id}>
-          <AccordionSummary
+        <S.StyledAccordion key={section._id}>
+          <S.StyledSummaryAccordion
             id={`${section._id}`}
             expandIcon={<ExpandMoreIcon />}
           >
-            <StepTitle>{section.title}</StepTitle>
-          </AccordionSummary>
+            <S.StepTitle>{section.title}</S.StepTitle>
+          </S.StyledSummaryAccordion>
           <AccordionDetails>
             {(section.steps ?? []).map((step) => (
-              <Step
+              <S.Step
                 key={step._id}
                 id={`${section._id}-${step.order}`}
               >
-                <StepContent>{step.content}</StepContent>
+                <S.StepContent>{step.content}</S.StepContent>
                 {step.mediaType === "image" && step.mediaUrl && (
-                  <Image
+                  <S.Image
                     src={step.mediaUrl}
                     loading="lazy"
                     alt={step.mediaUrl}
                   />
                 )}
                 {step.mediaType === "video" && step.mediaUrl && (
-                  <Video
+                  <S.Video
                     src={step.mediaUrl}
                     autoPlay
                     muted
@@ -75,20 +64,21 @@ const GuideCard = ({ guide, setGuides }) => {
                   />
                 )}
 
-              </Step>
+              </S.Step>
             ))}
           </AccordionDetails>
-        </Accordion>
+          <S.Actions>
+            <S.IconButton onClick={() => navigate(`/detailGuide/${guide._id}`)}>
+              <PenSquareIcon size={18} />
+            </S.IconButton>
+            <S.IconButton onClick={(e) => handleDelete(e, guide._id)}>
+              <Trash2Icon size={18} />
+            </S.IconButton>
+          </S.Actions>
+        </S.StyledAccordion>
       ))}
-      <Actions>
-        <IconButton onClick={() => navigate(`/detailGuide/${guide._id}`)}>
-          <PenSquareIcon size={18} />
-        </IconButton>
-        <IconButton onClick={(e) => handleDelete(e, guide._id)}>
-          <Trash2Icon size={18} />
-        </IconButton>
-      </Actions>
-    </Card>
+
+    </>
   );
 };
 

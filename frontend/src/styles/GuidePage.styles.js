@@ -7,7 +7,6 @@ export const PageContainer = styled.div`
   padding: 0 1.5rem;
 `;
 
-
 export const BackLink = styled(Link)`
   display: inline-flex;
   align-items: center;
@@ -22,7 +21,6 @@ export const BackLink = styled(Link)`
   }
 `;
 
-
 export const Header = styled.header`
   background: linear-gradient(180deg, #161a23, #0b0e14);
   padding: 1rem 1.5rem;
@@ -30,7 +28,6 @@ export const Header = styled.header`
   margin-bottom: 2rem;
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 `;
-
 
 export const HeaderContent = styled.div`
   display: flex;
@@ -44,7 +41,6 @@ export const Logo = styled.h1`
   font-weight: 600;
   letter-spacing: 0.04em;
 `;
-
 
 export const CreateLink = styled(Link)`
   display: inline-flex;
@@ -62,7 +58,6 @@ export const CreateLink = styled(Link)`
   }
 `;
 
-
 export const StatusMessage = styled.div`
   text-align: center;
   color: #9ca3af;
@@ -70,11 +65,16 @@ export const StatusMessage = styled.div`
   margin-top: 2rem;
 `;
 
-
 export const GuidesGrid = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2.5rem;
+  flex: 1;
+  min-width: 0;
 `;
 
-
+export const ContentLayout = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+`;
