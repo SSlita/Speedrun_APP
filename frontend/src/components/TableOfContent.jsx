@@ -14,11 +14,11 @@ const TableOfContent = ({ guides }) => {
                 <AccordionDetails>
                     <nav>
                         <ul>
-                            {guides.flatMap(guide =>
+                            {guides.flatMap( (guide, index) =>
                                 (guide.sections ?? []).map(section =>
                                     <S.GuideList key={`${section._id}-${section.title}`}>
                                         <S.LienGuide href={`#${section._id}`}>
-                                            {section.title}
+                                            {index + 1} - {section.title}
                                         </S.LienGuide>
                                     </S.GuideList>
                                 )

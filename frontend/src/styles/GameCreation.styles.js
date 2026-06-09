@@ -1,39 +1,21 @@
 import styled from "styled-components";
-import { Link } from "react-router";
 
-export const PageContainer = styled.div`
-  min-height: 100vh;
-  background: #f0ebe0;
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(12, 24, 36, 0.06) 1px, transparent 0);
-  background-size: 28px 28px;
-  padding: 48px 24px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-`;
-
-export const Card = styled.div`
+export const FormCard = styled.div`
   background: #ffffff;
   border-radius: 12px;
   border: 1px solid #e0d8cc;
   border-top: 4px solid #e85d04;
-  box-shadow: 0 8px 32px rgba(12, 24, 36, 0.08);
   overflow: hidden;
-  width: 100%;
-  max-width: 560px;
+  box-shadow: 0 8px 32px rgba(12, 24, 36, 0.08);
 `;
 
-export const CardHeader = styled.div`
+export const FormHeader = styled.div`
   padding: 24px 28px 20px;
   border-bottom: 1px solid #f0e8da;
   background: #fdfaf6;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 `;
 
-export const CardTitle = styled.h2`
+export const FormTitle = styled.h2`
   font-family: "Orbitron", sans-serif;
   font-size: 14px;
   font-weight: 700;
@@ -47,29 +29,7 @@ export const CardTitle = styled.h2`
   }
 `;
 
-export const BackLink = styled(Link)`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #7a6a55;
-  text-decoration: none;
-  font-family: "Nunito", sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid #e0d8cc;
-  background: #ffffff;
-  transition: all 0.15s ease;
-
-  &:hover {
-    border-color: #e85d04;
-    color: #e85d04;
-    background: #fff8f4;
-  }
-`;
-
-export const Form = styled.form`
+export const FormBody = styled.div`
   padding: 28px;
   display: flex;
   flex-direction: column;
@@ -152,13 +112,13 @@ export const Preview = styled.img`
   margin-top: 4px;
 `;
 
-export const CardFooter = styled.div`
+export const FormFooter = styled.div`
   padding: 20px 28px 24px;
   border-top: 1px solid #f0e8da;
   background: #fdfaf6;
 `;
 
-export const SaveButton = styled.button`
+export const SubmitButton = styled.button`
   width: 100%;
   padding: 14px;
   background: #e85d04;
@@ -187,13 +147,4 @@ export const SaveButton = styled.button`
     opacity: 0.45;
     cursor: not-allowed;
   }
-`;
-
-export const LoaderWrapper = styled.div`
-  min-height: 100vh;
-  background: #f0ebe0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #e85d04;
 `;

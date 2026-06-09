@@ -1,17 +1,15 @@
-import { ArrowLeftIcon, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import api from "../lib/axios";
 import CategoryCard from "../components/CategoryCard";
+import Navbar from "../components/Navbar";
 import {
   PageContainer,
-  BackLink,
-  Header,
-  HeaderContent,
-  Logo,
-  CreateLink,
+  ContentWrapper,
+  SectionHeader,
+  SectionTitle,
   StatusMessage,
-  CategoriesGrid
+  CategoriesGrid,
 } from "../styles/CategoriesPage.styles";
 
 const CategoriesPage = () => {
@@ -34,43 +32,48 @@ const CategoriesPage = () => {
   }, [gameId]);
 
   return (
-    <PageContainer>
-      <BackLink to="/">
-        <ArrowLeftIcon size={18} />
-        Retour à l'accueil
-      </BackLink>
+    <>
+      <Navbar />
+      <PageContainer>
+        <ContentWrapper>
+          {loading && (
+            <StatusMessage>
+              <p>Chargement des catégories...</p>
+            </StatusMessage>
+          )}
 
-      <Header>
-        <HeaderContent>
-          <Logo>LOGO</Logo>
+          {!loading && (
+            <>
+              <SectionHeader>
+                <SectionTitle>
+                  Catégories
+                  {categories.length > 0 && (
+                    <span>{categories.length}</span>
+                  )}
+                </SectionTitle>
+              </SectionHeader>
 
-          <CreateLink to={`/game/${gameId}/createCategory`}>
-            <PlusIcon size={18} />
-            Nouvelle catégorie
-          </CreateLink>
-        </HeaderContent>
-      </Header>
-
-      {loading && (
-        <StatusMessage>Chargement des catégories...</StatusMessage>
-      )}
-
-      {!loading && categories.length === 0 && (
-        <StatusMessage>Aucune catégorie pour le moment</StatusMessage>
-      )}
-
-      {categories.length > 0 && (
-        <CategoriesGrid>
-          {categories.map((category) => (
-            <CategoryCard
-              key={category._id}
-              category={category}
-              setCategories={setCategories}
-            />
-          ))}
-        </CategoriesGrid>
-      )}
-    </PageContainer>
+              {categories.length === 0 ? (
+                <StatusMessage>
+                  <p>Aucune catégorie</p>
+                  <small>Ajoutez votre première catégorie avec le bouton en haut à droite</small>
+                </StatusMessage>
+              ) : (
+                <CategoriesGrid>
+                  {categories.map((category) => (
+                    <CategoryCard
+                      key={category._id}
+                      category={category}
+                      setCategories={setCategories}
+                    />
+                  ))}
+                </CategoriesGrid>
+              )}
+            </>
+          )}
+        </ContentWrapper>
+      </PageContainer>
+    </>
   );
 };
 

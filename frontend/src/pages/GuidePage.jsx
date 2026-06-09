@@ -1,21 +1,18 @@
-import { ArrowLeftIcon, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import api from "../lib/axios";
 import GuideCard from "../components/GuideCard";
+import Navbar from "../components/Navbar";
+import TableOfContent from "../components/TableOfContent";
 import {
   PageContainer,
-  BackLink,
-  Header,
-  HeaderContent,
-  Logo,
-  CreateLink,
+  ContentWrapper,
+  SectionHeader,
+  SectionTitle,
   StatusMessage,
-  GuidesGrid
+  GuidesGrid,
+  ContentLayout,
 } from "../styles/GuidePage.styles";
-import { ContentLayout } from "../styles/GuidePage.styles";
-
-import TableOfContent from "../components/TableOfContent";
 
 const GuidePage = () => {
   const { categoryId } = useParams();
@@ -24,7 +21,6 @@ const GuidePage = () => {
 
   useEffect(() => {
     if (!categoryId) return;
-
     const fetchGuides = async () => {
       try {
         const res = await api.get(`/guides/category/${categoryId}`);
@@ -35,52 +31,47 @@ const GuidePage = () => {
         setLoading(false);
       }
     };
-
     fetchGuides();
   }, [categoryId]);
 
   return (
-    <PageContainer>
-      <BackLink to="/">
-        <ArrowLeftIcon size={18} />
-        Retour à l'accueil
-      </BackLink>
+    <>
+      <Navbar />
+      <PageContainer>
+        <ContentWrapper>
+          {loading && (
+            <StatusMessage><p>Chargement des guides...</p></StatusMessage>
+          )}
 
-      <Header>
-        <HeaderContent>
-          <Logo>LOGO</Logo>
+          {!loading && (
+            <>
+              <SectionHeader>
+                <SectionTitle>
+                  Sections
+                  {guides.length > 0 && <span>{guides.length}</span>}
+                </SectionTitle>
+              </SectionHeader>
 
-          <CreateLink to={`/category/${categoryId}/createGuide`}>
-            <PlusIcon size={18} />
-            Nouveau guide
-          </CreateLink>
-        </HeaderContent>
-      </Header>
-
-      {loading && (
-        <StatusMessage>Chargement des guides...</StatusMessage>
-      )}
-
-      {!loading && guides.length === 0 && (
-        <StatusMessage>Aucun guide pour le moment</StatusMessage>
-      )}
-
-      {guides.length > 0 && (
-        <ContentLayout>
-          <TableOfContent guides={guides} />
-          <GuidesGrid>
-            {guides.map((guide) => (
-              <GuideCard
-                key={guide._id}
-                guide={guide}
-                setGuides={setGuides}
-              />
-            ))}
-          </GuidesGrid>
-        </ContentLayout>
-      )}
-    </PageContainer>
-
+              {guides.length === 0 ? (
+                <StatusMessage>
+                  <p>Aucun guide</p>
+                  <small>Ajoutez votre premier guide avec le bouton en haut à droite</small>
+                </StatusMessage>
+              ) : (
+                <ContentLayout>
+                  <TableOfContent guides={guides} />
+                  <GuidesGrid>
+                    {guides.map((guide) => (
+                      <GuideCard key={guide._id} guide={guide} setGuides={setGuides} />
+                    ))}
+                  </GuidesGrid>
+                </ContentLayout>
+              )}
+            </>
+          )}
+        </ContentWrapper>
+      </PageContainer>
+    </>
   );
 };
 

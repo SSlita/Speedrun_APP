@@ -1,20 +1,21 @@
-import { useParams, Link } from "react-router";
-import { ArrowLeftIcon } from 'lucide-react';
+import { useParams } from "react-router";
+import Navbar from "../components/Navbar";
 import CategoryCreation from "../components/CategoryCreation";
+import { PageContainer, ContentWrapper } from "../styles/CreateCategory.styles";
 
 const CreateCategory = () => {
   const { gameId } = useParams();
 
   return (
-    <div>
-      <Link to={`/game/${gameId}`}>
-        <ArrowLeftIcon />
-        Retour au jeu
-      </Link>
-      <CategoryCreation
-        gameId={gameId} />
-    </div>
-  )
-}
+    <>
+      <Navbar />
+      <PageContainer>
+        <ContentWrapper>
+          <CategoryCreation gameId={gameId} />
+        </ContentWrapper>
+      </PageContainer>
+    </>
+  );
+};
 
 export default CreateCategory;

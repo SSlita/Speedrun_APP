@@ -69,7 +69,7 @@ export const BackLink = styled(Link)`
   }
 `;
 
-export const Form = styled.form`
+export const Form = styled.div`
   padding: 28px;
   display: flex;
   flex-direction: column;
@@ -115,41 +115,6 @@ export const Input = styled.input`
     background: #ffffff;
     box-shadow: 0 0 0 3px rgba(232, 93, 4, 0.1);
   }
-`;
-
-export const FileLabel = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  border: 1.5px dashed #e0d8cc;
-  background: #fdfaf6;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: "Nunito", sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: #7a6a55;
-
-  &:hover {
-    border-color: #e85d04;
-    background: #fff8f4;
-    color: #e85d04;
-  }
-
-  input[type="file"] {
-    display: none;
-  }
-`;
-
-export const Preview = styled.img`
-  width: 100%;
-  max-height: 220px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 1.5px solid #e0d8cc;
-  margin-top: 4px;
 `;
 
 export const CardFooter = styled.div`

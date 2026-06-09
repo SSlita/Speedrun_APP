@@ -2,112 +2,158 @@ import styled from "styled-components";
 import { Link } from "react-router";
 
 export const Card = styled.div`
-  background: linear-gradient(135deg, #ffffff 0%, #f8f8f8 100%);
-  border-radius: 20px;
-  overflow: visible;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-  transition: all 0.3s ease;
+  background: #ffffff;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e0d8cc;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   position: relative;
-  border: 3px solid transparent;
-  padding: 16px;
-  
+  cursor: pointer;
+
   &:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
-    border-color: #5fdfb8;
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 10px 32px rgba(12, 24, 36, 0.14);
+    border-color: #e85d04;
+  }
+
+  &:hover .card-actions {
+    opacity: 1;
+    transform: translateY(0);
   }
 `;
 
 export const CardInner = styled.div`
+  height: 100%;
+  position: relative;
   display: flex;
-  gap: 16px;
-  align-items: flex-start;
+  flex-direction: column;
 `;
 
 export const CardLink = styled(Link)`
   text-decoration: none;
   color: inherit;
-  display: contents;
+  display: block;
+  position: relative;
+`;
+
+export const CoverWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: #f5efe4;
 `;
 
 export const CoverImage = styled.img`
-  width: 120px;
-  height: 120px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 12px;
-  flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border: 2px solid #e0e0e0;
+  display: block;
+  transition: transform 0.3s ease;
+
+  ${Card}:hover & {
+    transform: scale(1.04);
+  }
 `;
 
-export const CardContent = styled.div`
-  flex: 1;
+export const CoverPlaceholder = styled.div`
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f5efe4 0%, #ede4d4 100%);
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
 `;
 
-export const TitleRow = styled.div`
+export const PlatformBadge = styled.span`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #0c1824;
+  color: #ffbe0b;
+  font-family: "Orbitron", sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  z-index: 2;
+`;
+
+export const CardFooter = styled.div`
+  padding: 9px 11px 11px;
+  background: #ffffff;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
+  border-top: 1px solid #f0e8da;
 `;
 
 export const Title = styled.h3`
-  font-size: 18px;
-  font-weight: 700;
-  color: #333;
+  font-family: "Nunito", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  color: #2a1f14;
   margin: 0;
-  letter-spacing: 0.3px;
-  line-height: 1.3;
   flex: 1;
-  overflow-wrap: break-word
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.1px;
 `;
+
+export const TitleRow = styled.div``;
+export const CardContent = styled.div``;
 
 export const Actions = styled.div`
   display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-left: auto;
+  gap: 5px;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+
+  ${Card}:hover & {
+    opacity: 1;
+    transform: translateY(0);
+  }
 `;
 
 export const IconButton = styled.button`
-  background: linear-gradient(135deg, #5fdfb8 0%, #6ee8c0 100%);
-  border: none;
-  border-radius: 50%;
-  width: 38px;
-  height: 38px;
+  background: #f5efe4;
+  border: 1px solid #e8ddd0;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 3px 8px rgba(95, 223, 184, 0.4);
+  transition: all 0.15s ease;
   flex-shrink: 0;
-  
+
   svg {
-    color: white;
+    color: #8a7a6a;
     stroke-width: 2.5;
+    width: 13px;
+    height: 13px;
   }
-  
+
   &:hover {
-    background: linear-gradient(135deg, #7fffd4 0%, #8fffd8 100%);
-    transform: scale(1.15);
-    box-shadow: 0 5px 12px rgba(95, 223, 184, 0.5);
+    background: #ede4d4;
+    border-color: #d8ccbc;
+    transform: scale(1.1);
+    svg { color: #2a1f14; }
   }
-  
-  &:active {
-    transform: scale(0.95);
+
+  &:last-child:hover {
+    background: #fff0f0;
+    border-color: #e60012;
+    svg { color: #e60012; }
   }
-  
-  &:last-child {
-    background: linear-gradient(135deg, #ff6b9d 0%, #ff7aa8 100%);
-    box-shadow: 0 3px 8px rgba(255, 107, 157, 0.4);
-    
-    &:hover {
-      background: linear-gradient(135deg, #ff7aa8 0%, #ff89b3 100%);
-      box-shadow: 0 5px 12px rgba(255, 107, 157, 0.5);
-    }
-  }
+
+  &:active { transform: scale(0.95); }
 `;

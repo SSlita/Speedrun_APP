@@ -6,26 +6,26 @@ import {
   Card,
   CardInner,
   CardLink,
+  CoverWrapper,
   CoverImage,
-  CardContent,
-  TitleRow,
+  CoverPlaceholder,
+  PlatformBadge,
+  CardFooter,
   Title,
   Actions,
-  IconButton
+  IconButton,
 } from "../styles/GameCard.styles";
 
 const GameCard = ({ game, setGames }) => {
   const navigate = useNavigate();
 
-  const handleDelete = async (e, id) => {
+  const handleDelete = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm("Voulez-vous vraiment supprimer le jeu ?")) {
-      return;
-    }
+    if (!window.confirm("Voulez-vous vraiment supprimer ce jeu ?")) return;
     try {
-      await api.delete(`/jeux/${id}`);
-      setGames((prev) => prev.filter((g) => g._id !== id));
+      await api.delete(`/jeux/${game._id}`);
+      setGames((prev) => prev.filter((g) => g._id !== game._id));
       toast.success("Jeu supprimé avec succès");
     } catch (error) {
       toast.error("Échec lors de la suppression");
@@ -42,28 +42,29 @@ const GameCard = ({ game, setGames }) => {
     <Card>
       <CardInner>
         <CardLink to={`/game/${game._id}`}>
-          <CoverImage
-            src={game.coverImage}
-            alt={game.title}
-          />
-          <CardContent>
-            <TitleRow>
-              <Title>{game.title}</Title>
-              {game.platform && (
-                <PlatformBadge>{game.platform}</PlatformBadge>
-              )}
-            </TitleRow>
-          </CardContent>
+          <CoverWrapper>
+            {game.coverImage ? (
+              <CoverImage src={game.coverImage} alt={game.title} />
+            ) : (
+              <CoverPlaceholder>🎮</CoverPlaceholder>
+            )}
+            {game.platform && (
+              <PlatformBadge>{game.platform}</PlatformBadge>
+            )}
+          </CoverWrapper>
         </CardLink>
 
-        <Actions>
-          <IconButton onClick={handleEdit} title="Modifier">
-            <PenSquareIcon size={16} />
-          </IconButton>
-          <IconButton onClick={(e) => handleDelete(e, game._id)} title="Supprimer">
-            <Trash2Icon size={16} />
-          </IconButton>
-        </Actions>
+        <CardFooter>
+          <Title title={game.title}>{game.title}</Title>
+          <Actions className="card-actions">
+            <IconButton onClick={handleEdit} title="Modifier">
+              <PenSquareIcon size={14} />
+            </IconButton>
+            <IconButton onClick={handleDelete} title="Supprimer">
+              <Trash2Icon size={14} />
+            </IconButton>
+          </Actions>
+        </CardFooter>
       </CardInner>
     </Card>
   );

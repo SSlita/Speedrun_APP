@@ -4,11 +4,26 @@ import Navbar from "../components/Navbar";
 import GameCard from "../components/GameCard";
 import {
   PageContainer,
+  ContentWrapper,
+  SectionTitle,
+  SectionHeader,
   StatusMessage,
-  GamesGrid
+  GamesGrid,
+  LoadingGrid,
+  SkeletonCard,
 } from "../styles/HomePage.styles";
 
-import { SearchContainer, SearchInput } from "../styles/Searchbar.styles";
+const SKELETON_COUNT = 10;
+
+const SkeletonCards = () =>
+  Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+    <SkeletonCard key={i}>
+      <div className="skeleton-cover" />
+      <div className="skeleton-footer">
+        <div className="skeleton-line w-80" />
+      </div>
+    </SkeletonCard>
+  ));
 
 const HomePage = () => {
   const [games, setGames] = useState([]);
@@ -24,7 +39,7 @@ const HomePage = () => {
         setGames(res.data);
         setFilteredGames(res.data);
       } catch (error) {
-        console.log("Impossible de récupérer les jeux", error);
+        console.error("Impossible de récupérer les jeux", error);
       } finally {
         setLoading(false);
       }
@@ -41,36 +56,46 @@ const HomePage = () => {
 
   return (
     <>
-      <Navbar />
-      <PageContainer>
-        <SearchContainer>
-          <SearchInput
-            type="text"
-            placeholder="Recherché un jeu..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </SearchContainer>
+      <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
-        {loading && (
-          <StatusMessage>Chargement des jeux...</StatusMessage>
-        )}
-        {!loading && filteredGames.length === 0 && (
-          <StatusMessage>
-            {searchQuery ? "Aucun jeu trouvé" : "Aucun jeu pour le moment"}
-          </StatusMessage>
-        )}
-        {filteredGames.length > 0 && (
-          <GamesGrid>
-            {filteredGames.map((game) => (
-              <GameCard
-                key={game._id}
-                game={game}
-                setGames={setGames}
-              />
-            ))}
-          </GamesGrid>
-        )}
+      <PageContainer>
+        <ContentWrapper>
+          {loading && (
+            <LoadingGrid>
+              <SkeletonCards />
+            </LoadingGrid>
+          )}
+
+          {!loading && (
+            <>
+              <SectionHeader>
+                <SectionTitle>
+                  {searchQuery ? `Résultats pour "${searchQuery}"` : "Tous les jeux"}
+                  {filteredGames.length > 0 && (
+                    <span>{filteredGames.length}</span>
+                  )}
+                </SectionTitle>
+              </SectionHeader>
+
+              {filteredGames.length === 0 ? (
+                <StatusMessage>
+                  <p>{searchQuery ? "Aucun jeu trouvé" : "Aucun jeu pour le moment"}</p>
+                  <small>
+                    {searchQuery
+                      ? "Essayez un autre terme de recherche"
+                      : "Ajoutez votre premier jeu avec le bouton en haut à droite"}
+                  </small>
+                </StatusMessage>
+              ) : (
+                <GamesGrid>
+                  {filteredGames.map((game) => (
+                    <GameCard key={game._id} game={game} setGames={setGames} />
+                  ))}
+                </GamesGrid>
+              )}
+            </>
+          )}
+        </ContentWrapper>
       </PageContainer>
     </>
   );

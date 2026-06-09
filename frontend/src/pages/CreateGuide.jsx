@@ -1,23 +1,21 @@
 import { useParams } from "react-router";
-import { ArrowLeftIcon } from "lucide-react";
-
-import { PageContainer, BackLink } from "../styles/CreateGuide.styles";
+import Navbar from "../components/Navbar";
 import GuideCreation from "../components/GuideCreation";
+import { PageContainer, ContentWrapper } from "../styles/CreateGuide.styles";
 
 const CreateGuide = () => {
-    const { categoryId } = useParams();
+  const { categoryId } = useParams();
 
-    return (
-        <PageContainer>
-            <BackLink to={`/category/${categoryId}`}>
-                <ArrowLeftIcon size={18} />
-                Retour à la catégorie
-            </BackLink>
-
-            <GuideCreation
-                categoryId={categoryId} />
-        </PageContainer>
-    );
+  return (
+    <>
+      <Navbar />
+      <PageContainer>
+        <ContentWrapper>
+          <GuideCreation categoryId={categoryId} />
+        </ContentWrapper>
+      </PageContainer>
+    </>
+  );
 };
 
 export default CreateGuide;

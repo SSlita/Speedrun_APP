@@ -1,16 +1,17 @@
-import { Link } from 'react-router';
-import { ArrowLeftIcon } from 'lucide-react';
 import GameCreation from '../components/GameCreation';
+import Navbar from '../components/Navbar';
+import { PageContainer, ContentWrapper } from '../styles/CreateGame.styles';
 
 const CreateGame = () => {
   return (
-    <div>
-      <Link to="/">
-        <ArrowLeftIcon />
-        Retour à l'accueil
-      </Link>
-      <GameCreation />
-    </div>
+    <>
+      <Navbar />
+      <PageContainer>
+        <ContentWrapper>
+          <GameCreation />
+        </ContentWrapper>
+      </PageContainer>
+    </>
   );
 };
 
