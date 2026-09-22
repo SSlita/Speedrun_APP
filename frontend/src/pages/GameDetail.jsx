@@ -5,24 +5,23 @@ import { useNavigate, useParams } from "react-router";
 import api from "../lib/axios";
 import Navbar from "../components/Navbar";
 import {
-  PageContainer,
-  Card,
-  CardHeader,
-  CardTitle,
-  BackLink,
-  Form,
-  Field,
-  Label,
-  Input,
-  FileLabel,
-  Preview,
-  CardFooter,
-  SaveButton,
-  LoaderWrapper,
+  PageContainer, Card, CardHeader, CardTitle, BackLink,
+  Form, Field, Label, Input, FileLabel, Preview,
+  CardFooter, SaveButton, LoaderWrapper,
 } from "../styles/GameDetail.styles";
 
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+const uploadToMinio = async (file, folder) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', folder);
+  
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/upload/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  const { publicUrl } = await res.json();
+  return publicUrl;
+};
 
 const GameDetail = () => {
   const [game, setGame] = useState(null);
@@ -56,23 +55,8 @@ const GameDetail = () => {
     setNewImageFile(file);
   };
 
-  const uploadNewImage = async () => {
-    if (!newImageFile) return game.coverImage;
-    const urlParts = game.coverImage.split("/upload/")[1];
-    const pathWithoutVersion = urlParts.replace(/^v\d+\//, "");
-    const currentFolder = pathWithoutVersion.split("/")[0];
-    const formData = new FormData();
-    formData.append("file", newImageFile);
-    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-    formData.append("folder", `${currentFolder}/covers`);
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-      { method: "POST", body: formData }
-    );
-    const data = await res.json();
-    if (!res.ok) throw new Error("Upload échoué");
-    return data.secure_url;
-  };
+  const sanitizeFolderName = (name) =>
+    name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -82,7 +66,13 @@ const GameDetail = () => {
     }
     setSaving(true);
     try {
-      const finalImageUrl = await uploadNewImage();
+      let finalImageUrl = game.coverImage;
+      if (newImageFile) {
+        finalImageUrl = await uploadToMinio(
+          newImageFile,
+          `${sanitizeFolderName(game.title)}/covers`
+        );
+      }
       await api.put(`/jeux/${gameId}`, { title: game.title, coverImage: finalImageUrl });
       toast.success("Jeu modifié avec succès");
       navigate("/");
@@ -97,9 +87,7 @@ const GameDetail = () => {
     return (
       <>
         <Navbar />
-        <LoaderWrapper>
-          <LoaderIcon size={32} className="animate-spin" />
-        </LoaderWrapper>
+        <LoaderWrapper><LoaderIcon size={32} className="animate-spin" /></LoaderWrapper>
       </>
     );
   }
@@ -129,7 +117,6 @@ const GameDetail = () => {
             <CardTitle>Modifier le <span>jeu</span></CardTitle>
             <BackLink to="/"><ArrowLeftIcon size={14} /> Retour</BackLink>
           </CardHeader>
-
           <Form onSubmit={handleSave}>
             <Field>
               <Label>Titre</Label>
@@ -140,25 +127,19 @@ const GameDetail = () => {
                 onChange={(e) => setGame({ ...game, title: e.target.value })}
               />
             </Field>
-
             <Field>
               <Label>Image de couverture</Label>
               <FileLabel>
                 <ImageIcon size={16} />
                 {imagePreview ? "Changer l'image" : "Choisir une image"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  disabled={saving}
-                />
+                <input type="file" accept="image/*"
+                  onChange={handleImageChange} disabled={saving} />
               </FileLabel>
               {(imagePreview || game.coverImage) && (
                 <Preview src={imagePreview || game.coverImage} alt="Aperçu" />
               )}
             </Field>
           </Form>
-
           <CardFooter>
             <SaveButton onClick={handleSave} disabled={saving}>
               {saving ? "Sauvegarde..." : "Sauvegarder les changements"}

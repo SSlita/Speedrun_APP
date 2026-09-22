@@ -34,7 +34,7 @@ export const CategoryLabel = styled.span`
   font-family: "Orbitron", sans-serif;
   font-size: 9px;
   font-weight: 700;
-  color: #e85d04;
+  color: #c44d00;
   text-transform: uppercase;
   letter-spacing: 1.5px;
 `;

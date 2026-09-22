@@ -12,9 +12,20 @@ import {
   StepActions, CardFooter, CancelLink, SaveButton, IconButton, LoaderWrapper,
 } from "../styles/GuideDetail.styles";
 
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 const KEY_SEP = "::";
+
+const uploadToMinio = async (file, folder) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', folder);
+  
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/upload/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  const { publicUrl } = await res.json();
+  return publicUrl;
+};
 
 const GuideDetail = () => {
   const [guide, setGuide] = useState(null);
@@ -49,6 +60,9 @@ const GuideDetail = () => {
   }, [guideId, navigate]);
 
   const makeKey = (sectionId, stepId) => `${sectionId}${KEY_SEP}${stepId}`;
+
+  const sanitizeFolderName = (name) =>
+    name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
   const handleStepChange = (sectionId, stepId, field, value) => {
     setGuide((prev) => ({
@@ -110,25 +124,6 @@ const GuideDetail = () => {
     handleStepChange(sectionId, stepId, "mediaType", isVideo ? "video" : "image");
   };
 
-  const sanitizeFolderName = (name) =>
-    name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-
-  const uploadToCloudinary = async (file, type) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-    formData.append("folder",
-      `${sanitizeFolderName(gameTitle)}/${sanitizeFolderName(categoryTitle)}/${type === "video" ? "videos" : "guideImg"}`
-    );
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${type === "video" ? "video" : "image"}/upload`,
-      { method: "POST", body: formData }
-    );
-    const data = await res.json();
-    if (!res.ok) throw new Error("Upload échoué");
-    return data.secure_url;
-  };
-
   const handleSave = async () => {
     setSaving(true); setUploading(true);
     try {
@@ -140,9 +135,10 @@ const GuideDetail = () => {
         const section = guide.sections.find((s) => s._id === sectionId);
         const step = section?.steps.find((s) => s._id === stepId);
         if (!step) continue;
-        const type = file.type.startsWith("video/") ? "video" : "image";
-        const newUrl = await uploadToCloudinary(file, type);
-        uploadedUrls[stepId] = { mediaUrl: newUrl, mediaType: type };
+        const isVideo = file.type.startsWith("video/");
+        const folder = `${sanitizeFolderName(gameTitle)}/${sanitizeFolderName(categoryTitle)}/${isVideo ? "videos" : "guideImg"}`;
+        const newUrl = await uploadToMinio(file, folder);
+        uploadedUrls[stepId] = { mediaUrl: newUrl, mediaType: isVideo ? "video" : "image" };
       }
       for (const section of guide.sections) {
         await api.put(`/sections/${section._id}`, { title: section.title });
@@ -193,8 +189,7 @@ const GuideDetail = () => {
 
                 <Field>
                   <Label>Titre de la section</Label>
-                  <Input
-                    value={section.title}
+                  <Input value={section.title}
                     onChange={(e) =>
                       setGuide((prev) => ({
                         ...prev,
@@ -212,9 +207,7 @@ const GuideDetail = () => {
                     <StepCard key={step._id}>
                       <Field>
                         <Label>Contenu</Label>
-                        <Textarea
-                          rows={4}
-                          value={step.content}
+                        <Textarea rows={4} value={step.content}
                           onChange={(e) =>
                             handleStepChange(section._id, step._id, "content", e.target.value)
                           }
@@ -223,16 +216,14 @@ const GuideDetail = () => {
 
                       <Field>
                         <Label>Média</Label>
-                        <Select
-                          value={step.mediaType || "none"}
+                        <Select value={step.mediaType || "none"}
                           onChange={(e) => {
                             handleStepChange(section._id, step._id, "mediaType", e.target.value);
                             if (e.target.value === "none") {
                               setNewMediaFiles((prev) => { const n = { ...prev }; delete n[key]; return n; });
                               setMediaPreviews((prev) => { const n = { ...prev }; delete n[key]; return n; });
                             }
-                          }}
-                        >
+                          }}>
                           <option value="none">Aucun</option>
                           <option value="image">Image</option>
                           <option value="video">Vidéo</option>
@@ -245,12 +236,10 @@ const GuideDetail = () => {
                           <FileLabel>
                             <ImageIcon size={14} />
                             {newMediaFiles[key] ? "Changer le fichier" : "Choisir un fichier"}
-                            <input
-                              type="file"
+                            <input type="file"
                               accept={step.mediaType === "image" ? "image/*" : "video/*"}
                               onChange={(e) => handleFileChange(section._id, step._id, e.target.files[0])}
-                              disabled={uploading}
-                            />
+                              disabled={uploading} />
                           </FileLabel>
                           {step.mediaType === "image" && (mediaPreviews[key] || step.mediaUrl) && (
                             <ImagePreview src={mediaPreviews[key] || step.mediaUrl} alt={step.content} />

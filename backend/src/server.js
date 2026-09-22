@@ -11,14 +11,14 @@ import stepRoute from './routes/steps.js';
 import cloudinaryRoute from './routes/cloudinary.js';
 
 import { connectDB } from './config/db.js';
-
+import uploadRoute from './routes/upload.js';
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: "*",
 }));
 
 
@@ -36,6 +36,7 @@ app.use("/api/sections", sectionRoute);
 app.use("/api/steps", stepRoute);
 
 app.use("/api/cloudinary", cloudinaryRoute);
+app.use("/api/upload", uploadRoute);
 
 connectDB().then(() => {
     app.listen(PORT, () => {

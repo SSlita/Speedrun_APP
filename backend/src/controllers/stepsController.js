@@ -1,4 +1,5 @@
 import Step from "../models/Step.js";
+import { extractObjectName, deleteFile } from '../config/minio.js';
 
 export async function getStepBySectionId(req, res) {
     try {
@@ -13,7 +14,6 @@ export async function getStepBySectionId(req, res) {
 export async function createStep(req, res) {
     try {
         const { sectionId, order, content, mediaType, mediaUrl } = req.body;
-
         const step = new Step({
             sectionId,
             order,
@@ -21,7 +21,6 @@ export async function createStep(req, res) {
             mediaType: mediaType || 'none',
             mediaUrl: mediaUrl || ''
         });
-
         const savedStep = await step.save();
         res.status(201).json(savedStep);
     } catch (error) {
@@ -32,14 +31,26 @@ export async function createStep(req, res) {
 
 export async function updateStep(req, res) {
     try {
+        const existingStep = await Step.findById(req.params.id);
+        if (!existingStep) {
+            return res.status(400).json({ message: "Etape introuvable" });
+        }
+
+        const newMediaUrl = req.body.mediaUrl;
+        if (newMediaUrl && existingStep.mediaUrl && newMediaUrl !== existingStep.mediaUrl) {
+            const oldObjectName = extractObjectName(existingStep.mediaUrl);
+            if (oldObjectName) {
+                await deleteFile(oldObjectName);
+                console.log("Ancien média supprimé:", oldObjectName);
+            }
+        }
+
         const updatedStep = await Step.findByIdAndUpdate(
             req.params.id,
             req.body,
             { new: true }
         );
-        if (!updatedStep) {
-            return res.status(400).json({ message: "Etape introuvable" });
-        }
+
         res.status(200).json(updatedStep);
     } catch (error) {
         console.error("Erreur dans updateStep", error);
@@ -50,9 +61,16 @@ export async function updateStep(req, res) {
 export async function deleteStep(req, res) {
     try {
         const deletedStep = await Step.findByIdAndDelete(req.params.id);
-
         if (!deletedStep) {
             return res.status(400).json({ message: "Etape introuvable" });
+        }
+
+        if (deletedStep.mediaUrl) {
+            const objectName = extractObjectName(deletedStep.mediaUrl);
+            if (objectName) {
+                await deleteFile(objectName);
+                console.log("Média supprimé:", objectName);
+            }
         }
 
         res.status(200).json({ message: "Etape supprimé avec succès" });

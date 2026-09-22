@@ -39,6 +39,8 @@ export const Image = styled.img`
   ${mediaStyle}
   max-width: 100%;
   height: auto;
+  display: block;
+  margin: 0 auto;
 `;
 
 export const Video = styled.video`

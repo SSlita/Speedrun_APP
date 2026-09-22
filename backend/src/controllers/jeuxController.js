@@ -1,7 +1,12 @@
 import Jeux from '../models/Jeux.js';
 import Category from '../models/Categories.js';
 import Guide from '../models/Guides.js';
-import cloudinary from '../config/cloudinary.js';
+import Section from '../models/Sections.js';
+import Step from '../models/Step.js';
+import { deleteFolder, renameFolder, extractObjectName, deleteFile } from '../config/minio.js';
+
+const sanitizeFolderName = (name) =>
+    name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
 export async function getAllGames(_, res) {
     try {
@@ -16,24 +21,20 @@ export async function getAllGames(_, res) {
 export async function getGameById(req, res) {
     try {
         const findedGame = await Jeux.findById(req.params.id);
-
         if (!findedGame) {
             return res.status(404).json({ message: "Jeux introuvable" });
         }
-
         res.status(200).json(findedGame);
     } catch (error) {
         console.log("Erreur dans getGameById", error);
         res.status(500).json({ message: "Problème serveur " });
     }
-
 }
 
 export async function addGame(req, res) {
     try {
         const { title, coverImage } = req.body;
         const game = new Jeux({ title, coverImage });
-
         const savedGame = await game.save();
         res.status(201).json(savedGame);
     } catch (error) {
@@ -45,7 +46,6 @@ export async function addGame(req, res) {
 export async function deleteGame(req, res) {
     try {
         const jeu = await Jeux.findById(req.params.id);
-
         if (!jeu) {
             return res.status(404).json({ message: "Jeu introuvable" });
         }
@@ -54,61 +54,30 @@ export async function deleteGame(req, res) {
             const categories = await Category.find({ gameId: req.params.id });
             const categoryIds = categories.map(c => c._id);
 
-            await Guide.deleteMany({ categoryId: { $in: categoryIds } });
-            console.log(`Guides supprimés`);
+            for (const categoryId of categoryIds) {
+                const guides = await Guide.find({ categoryId });
+                for (const guide of guides) {
+                    const sections = await Section.find({ guideId: guide._id });
+                    for (const section of sections) {
+                        await Step.deleteMany({ sectionId: section._id });
+                    }
+                    await Section.deleteMany({ guideId: guide._id });
+                }
+            }
 
+            await Guide.deleteMany({ categoryId: { $in: categoryIds } });
             await Category.deleteMany({ gameId: req.params.id });
-            console.log(`Catégories supprimées`);
+            console.log("Catégories, guides, sections et étapes supprimés");
         } catch (error) {
             console.log("Erreur suppression catégories/guides:", error);
         }
 
-        if (jeu.coverImage.includes("cloudinary.com")) {
-            const url = jeu.coverImage.split("/upload/")[1];
-            const urlWithoutVersion = url.replace(/^v\d+\//, "");
-            const gameFolder = urlWithoutVersion.split("/")[0];
-
-            console.log(`Suppression du dossier Cloudinary: ${gameFolder}`);
-
-            try {
-                await cloudinary.api.delete_resources_by_prefix(`${gameFolder}/`, {
-                    type: 'upload',
-                    resource_type: 'image'
-                });
-                console.log("Images supprimées");
-            } catch (error) {
-                console.log("Erreur suppression images:", error.error?.message);
-            }
-
-            try {
-                await cloudinary.api.delete_resources_by_prefix(`${gameFolder}/`, {
-                    type: 'upload',
-                    resource_type: 'video'
-                });
-                console.log("Vidéos supprimées");
-            } catch (error) {
-                console.log("Pas de vidéos");
-            }
-
-            try {
-                const folders = await cloudinary.api.sub_folders(gameFolder);
-
-                for (const folder of folders.folders) {
-                    try {
-                        const subFolders = await cloudinary.api.sub_folders(`${gameFolder}/${folder.name}`);
-                        for (const subFolder of subFolders.folders) {
-                            await cloudinary.api.delete_folder(`${gameFolder}/${folder.name}/${subFolder.name}`);
-                        }
-                    } catch (err) { }
-
-                    await cloudinary.api.delete_folder(`${gameFolder}/${folder.name}`);
-                }
-
-                await cloudinary.api.delete_folder(gameFolder);
-                console.log("Dossiers supprimés");
-            } catch (error) {
-                console.log("Erreur suppression dossiers:", error.error?.message);
-            }
+        try {
+            const folderPrefix = `${sanitizeFolderName(jeu.title)}/`;
+            await deleteFolder(folderPrefix);
+            console.log(`Dossier MinIO supprimé: ${folderPrefix}`);
+        } catch (error) {
+            console.log("Erreur suppression dossier MinIO:", error.message);
         }
 
         await Jeux.findByIdAndDelete(req.params.id);
@@ -123,37 +92,61 @@ export async function deleteGame(req, res) {
 export async function updateGame(req, res) {
     try {
         const { title, coverImage } = req.body;
-
         const game = await Jeux.findById(req.params.id);
 
         if (!game) {
             return res.status(404).json({ message: "Jeu introuvable" });
         }
 
+        const oldTitle = game.title;
+        const titleChanged = title && title !== oldTitle;
+
         if (coverImage && coverImage !== game.coverImage) {
             console.log("Nouvelle image détectée, suppression de l'ancienne");
-            
-            if (game.coverImage.includes("cloudinary.com")) {
-                try {
-                    const oldUrl = game.coverImage.split("/upload/")[1];
-                    const oldUrlWithoutVersion = oldUrl.replace(/^v\d+\//, "");
-                    const publicId = oldUrlWithoutVersion.replace(/\.[^.]+$/, "");
-
-                    await cloudinary.uploader.destroy(publicId);
-                    console.log("Ancienne image supprimée:", publicId);
-                } catch (error) {
-                    console.log("Erreur suppression ancienne image:", error);
-                }
+            const oldObjectName = extractObjectName(game.coverImage);
+            if (oldObjectName) {
+                await deleteFile(oldObjectName);
+                console.log("Ancienne image supprimée:", oldObjectName);
             }
-
             game.coverImage = coverImage;
+        }
+
+        if (titleChanged) {
+            const oldPrefix = `${sanitizeFolderName(oldTitle)}/`;
+            const newPrefix = `${sanitizeFolderName(title)}/`;
+            try {
+                await renameFolder(oldPrefix, newPrefix);
+                console.log(`Dossier MinIO renommé: ${oldPrefix} -> ${newPrefix}`);
+
+                if (game.coverImage.includes(oldPrefix)) {
+                    game.coverImage = game.coverImage.replace(oldPrefix, newPrefix);
+                }
+
+                const categories = await Category.find({ gameId: req.params.id });
+                for (const category of categories) {
+                    const guides = await Guide.find({ categoryId: category._id });
+                    for (const guide of guides) {
+                        const sections = await Section.find({ guideId: guide._id });
+                        for (const section of sections) {
+                            const steps = await Step.find({ sectionId: section._id });
+                            for (const step of steps) {
+                                if (step.mediaUrl && step.mediaUrl.includes(oldPrefix)) {
+                                    step.mediaUrl = step.mediaUrl.replace(oldPrefix, newPrefix);
+                                    await step.save();
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log("Erreur renommage dossier MinIO:", error.message);
+            }
         }
 
         game.title = title;
         const updatedGame = await game.save();
 
         console.log("Jeu sauvegardé:", updatedGame);
-
         res.status(200).json({ message: "Jeu modifié avec succès", game: updatedGame });
     } catch (error) {
         console.error("Erreur dans updateGame", error);

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { ImageIcon } from 'lucide-react';
 import api from '../lib/axios';
 import toast from 'react-hot-toast';
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FormCard,
   FormHeader,
@@ -17,8 +18,18 @@ import {
   SubmitButton,
 } from '../styles/GameCreation.styles';
 
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+const uploadToMinio = async (file, folder) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', folder);
+  
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/upload/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  const { publicUrl } = await res.json();
+  return publicUrl;
+};
 
 const GameCreation = () => {
   const [title, setTitle] = useState("");
@@ -26,23 +37,10 @@ const GameCreation = () => {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const sanitizeFolderName = (name) =>
     name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-
-  const uploadToCloudinary = async (file, gameName, subFolder) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-    formData.append("folder", `${gameName}/${subFolder}`);
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-      { method: "POST", body: formData }
-    );
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || "Upload échoué");
-    return data.secure_url;
-  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
@@ -54,7 +52,7 @@ const GameCreation = () => {
     setPreview(URL.createObjectURL(file));
     setLoading(true);
     try {
-      const url = await uploadToCloudinary(file, sanitizeFolderName(title), "covers");
+      const url = await uploadToMinio(file, sanitizeFolderName(title));
       setCoverImage(url);
       toast.success("Image chargée avec succès");
     } catch {
@@ -75,6 +73,7 @@ const GameCreation = () => {
     try {
       await api.post("/jeux", { title, coverImage });
       toast.success("Jeu ajouté");
+      await queryClient.invalidateQueries({ queryKey: ["jeux"] });
       navigate("/");
     } catch {
       toast.error("Échec lors de la création du jeu");
@@ -88,7 +87,6 @@ const GameCreation = () => {
       <FormHeader>
         <FormTitle>Nouveau <span>jeu</span></FormTitle>
       </FormHeader>
-
       <FormBody>
         <Field>
           <Label>Titre</Label>
@@ -99,7 +97,6 @@ const GameCreation = () => {
             onChange={(e) => setTitle(e.target.value)}
           />
         </Field>
-
         <Field>
           <Label>Image de couverture</Label>
           <FileLabel>
@@ -115,7 +112,6 @@ const GameCreation = () => {
           {preview && <Preview src={preview} alt="Aperçu" />}
         </Field>
       </FormBody>
-
       <FormFooter>
         <SubmitButton onClick={handleSubmit} disabled={loading || !coverImage}>
           {loading ? "En cours..." : "Créer le jeu"}

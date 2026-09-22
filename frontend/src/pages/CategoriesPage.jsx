@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { useParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import api from "../lib/axios";
 import CategoryCard from "../components/CategoryCard";
 import Navbar from "../components/Navbar";
@@ -14,45 +14,34 @@ import {
 
 const CategoriesPage = () => {
   const { gameId } = useParams();
-  const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState([]);
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await api.get(`/categories/game/${gameId}`);
-        setCategories(res.data);
-      } catch (error) {
-        console.log("Impossible de récupérer les catégories", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCategories();
-  }, [gameId]);
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ["categories", gameId],
+    queryFn: async () => {
+      const res = await api.get(`/categories/game/${gameId}`);
+      return res.data;
+    },
+    enabled: !!gameId,
+  });
 
   return (
     <>
       <Navbar />
       <PageContainer>
         <ContentWrapper>
-          {loading && (
+          {isLoading && (
             <StatusMessage>
               <p>Chargement des catégories...</p>
             </StatusMessage>
           )}
-
-          {!loading && (
+          {!isLoading && (
             <>
               <SectionHeader>
                 <SectionTitle>
                   Catégories
-                  {categories.length > 0 && (
-                    <span>{categories.length}</span>
-                  )}
+                  {categories.length > 0 && <span>{categories.length}</span>}
                 </SectionTitle>
               </SectionHeader>
-
               {categories.length === 0 ? (
                 <StatusMessage>
                   <p>Aucune catégorie</p>
@@ -61,11 +50,7 @@ const CategoriesPage = () => {
               ) : (
                 <CategoriesGrid>
                   {categories.map((category) => (
-                    <CategoryCard
-                      key={category._id}
-                      category={category}
-                      setCategories={setCategories}
-                    />
+                    <CategoryCard key={category._id} category={category} />
                   ))}
                 </CategoriesGrid>
               )}

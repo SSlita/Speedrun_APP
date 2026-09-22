@@ -1,23 +1,18 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "../lib/axios";
 import {
-  FormCard,
-  FormHeader,
-  FormTitle,
-  FormBody,
-  FormFooter,
-  Field,
-  Label,
-  Input,
-  SubmitButton,
+  FormCard, FormHeader, FormTitle, FormBody, FormFooter,
+  Field, Label, Input, SubmitButton,
 } from "../styles/CategoryCreation.styles";
 
 const CategoryCreation = ({ gameId }) => {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,6 +23,7 @@ const CategoryCreation = ({ gameId }) => {
     setLoading(true);
     try {
       await api.post("/categories", { name, gameId });
+      await queryClient.invalidateQueries({ queryKey: ["categories", gameId] });
       toast.success("Catégorie ajoutée avec succès");
       navigate(`/game/${gameId}`);
     } catch (error) {
@@ -42,19 +38,13 @@ const CategoryCreation = ({ gameId }) => {
       <FormHeader>
         <FormTitle>Nouvelle <span>catégorie</span></FormTitle>
       </FormHeader>
-
       <FormBody>
         <Field>
           <Label>Nom</Label>
-          <Input
-            type="text"
-            placeholder="Titre de la catégorie"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+          <Input type="text" placeholder="Titre de la catégorie"
+            value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
       </FormBody>
-
       <FormFooter>
         <SubmitButton onClick={handleSubmit} disabled={loading}>
           {loading ? "Création..." : "Créer la catégorie"}

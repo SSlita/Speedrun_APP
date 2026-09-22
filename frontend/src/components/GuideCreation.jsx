@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../lib/axios";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { ImageIcon } from "lucide-react";
 import {
   Card, CardHeader, Title, GameFolder,
@@ -12,11 +13,21 @@ import {
   SectionsPreview, SectionsTitle, SectionsList, SectionItem,
 } from "../styles/CreateGuide.styles";
 
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+const uploadToMinio = async (file, folder) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', folder);
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/upload/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  const { publicUrl } = await res.json();
+  return publicUrl;
+};
 
 const GuideCreation = ({ categoryId }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -60,21 +71,6 @@ const GuideCreation = ({ categoryId }) => {
   const sanitizeFolderName = (name) =>
     name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
-  const uploadToCloudinary = async (file, gameName, subFolder, type = "image", categoryName) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-    formData.append("folder", `${gameName}/${categoryName}/${subFolder}`);
-    const resourceType = type === "video" ? "video" : "image";
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
-      { method: "POST", body: formData }
-    );
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || "Upload échoué");
-    return data.secure_url;
-  };
-
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file || !gameTitle) return;
@@ -84,13 +80,8 @@ const GuideCreation = ({ categoryId }) => {
     if (isImage) setPreview(URL.createObjectURL(file));
     setUploading(true);
     try {
-      const url = await uploadToCloudinary(
-        file,
-        sanitizeFolderName(gameTitle),
-        isVideo ? "videos" : "guideImg",
-        isVideo ? "video" : "image",
-        sanitizeFolderName(categoryTitle)
-      );
+      const folder = `${sanitizeFolderName(gameTitle)}/${sanitizeFolderName(categoryTitle)}/${isVideo ? "videos" : "guideImg"}`;
+      const url = await uploadToMinio(file, folder);
       setNewStep((prev) => ({ ...prev, mediaUrl: url, mediaType: isVideo ? "video" : "image" }));
       toast.success(`${isVideo ? "Vidéo" : "Image"} uploadée !`);
     } catch {
@@ -150,12 +141,9 @@ const GuideCreation = ({ categoryId }) => {
       <CardHeader>
         <Title>Nouveau <span>guide</span></Title>
         {gameTitle && (
-          <GameFolder>
-            Dossier : <strong>{sanitizeFolderName(gameTitle)}</strong>
-          </GameFolder>
+          <GameFolder>Dossier : <strong>{sanitizeFolderName(gameTitle)}</strong></GameFolder>
         )}
       </CardHeader>
-
       <Form onSubmit={handleSubmit}>
         <Field>
           <Label>Que voulez-vous ajouter ?</Label>
@@ -163,37 +151,27 @@ const GuideCreation = ({ categoryId }) => {
             <RadioOption $active={creationType === "section"}>
               <input type="radio" value="section" checked={creationType === "section"}
                 onChange={(e) => setCreationType(e.target.value)} />
-              <RadioIcon>📚</RadioIcon>
-              Section
+              <RadioIcon>📚</RadioIcon>Section
             </RadioOption>
-            <RadioOption
-              $active={creationType === "step"}
-              $disabled={sections.length === 0}
-            >
+            <RadioOption $active={creationType === "step"} $disabled={sections.length === 0}>
               <input type="radio" value="step" checked={creationType === "step"}
                 onChange={(e) => setCreationType(e.target.value)}
                 disabled={sections.length === 0} />
-              <RadioIcon>📝</RadioIcon>
-              Étape
+              <RadioIcon>📝</RadioIcon>Étape
             </RadioOption>
           </RadioGroup>
           {sections.length === 0 && (
             <HintText>Créez d'abord une section avant d'ajouter des étapes</HintText>
           )}
         </Field>
-
         {creationType === "section" && (
           <Field>
             <Label>Titre de la section *</Label>
-            <Input
-              type="text"
-              placeholder="Ex: Installation, Configuration..."
+            <Input type="text" placeholder="Ex: Installation, Configuration..."
               value={newSection.title}
-              onChange={(e) => setNewSection({ title: e.target.value })}
-            />
+              onChange={(e) => setNewSection({ title: e.target.value })} />
           </Field>
         )}
-
         {creationType === "step" && (
           <>
             <Field>
@@ -201,22 +179,15 @@ const GuideCreation = ({ categoryId }) => {
               <Select value={newStep.sectionId}
                 onChange={(e) => setNewStep({ ...newStep, sectionId: e.target.value })}>
                 <option value="">Choisissez une section</option>
-                {sections.map((s) => (
-                  <option key={s._id} value={s._id}>{s.title}</option>
-                ))}
+                {sections.map((s) => <option key={s._id} value={s._id}>{s.title}</option>)}
               </Select>
             </Field>
-
             <Field>
               <Label>Contenu *</Label>
-              <Textarea
-                rows={5}
-                placeholder="Décrivez cette étape..."
+              <Textarea rows={5} placeholder="Décrivez cette étape..."
                 value={newStep.content}
-                onChange={(e) => setNewStep({ ...newStep, content: e.target.value })}
-              />
+                onChange={(e) => setNewStep({ ...newStep, content: e.target.value })} />
             </Field>
-
             <Field>
               <Label>Média (optionnel)</Label>
               <Select value={newStep.mediaType}
@@ -229,19 +200,15 @@ const GuideCreation = ({ categoryId }) => {
                 <option value="video">Vidéo</option>
               </Select>
             </Field>
-
             {newStep.mediaType !== "none" && (
               <Field>
                 <Label>Uploader {newStep.mediaType === "image" ? "une image" : "une vidéo"}</Label>
                 <FileLabel>
                   <ImageIcon size={16} />
                   {newStep.mediaUrl ? "Changer le fichier" : "Choisir un fichier"}
-                  <input
-                    type="file"
+                  <input type="file"
                     accept={newStep.mediaType === "image" ? "image/*" : "video/*"}
-                    onChange={handleFileChange}
-                    disabled={uploading || !gameTitle}
-                  />
+                    onChange={handleFileChange} disabled={uploading || !gameTitle} />
                 </FileLabel>
                 {uploading && <UploadStatus>Upload en cours...</UploadStatus>}
                 {preview && newStep.mediaType === "image" && <Preview src={preview} alt="Aperçu" />}
@@ -253,34 +220,29 @@ const GuideCreation = ({ categoryId }) => {
           </>
         )}
       </Form>
-
       <CardFooter>
-        <SubmitButton
-          type="submit"
-          onClick={handleSubmit}
+        <SubmitButton type="submit" onClick={handleSubmit}
           disabled={loading || uploading ||
-            (creationType === "step" && newStep.mediaType !== "none" && !newStep.mediaUrl)}
-        >
-          {loading ? "Ajout en cours..." :
-           uploading ? "Upload en cours..." :
+            (creationType === "step" && newStep.mediaType !== "none" && !newStep.mediaUrl)}>
+          {loading ? "Ajout en cours..." : uploading ? "Upload en cours..." :
            creationType === "section" ? "Ajouter la section" : "Ajouter l'étape"}
         </SubmitButton>
-
         {sections.length > 0 && (
           <FinishButton type="button"
-            onClick={() => { toast.success("Guide créé !"); navigate(`/category/${categoryId}`); }}>
+            onClick={async () => {
+              await queryClient.invalidateQueries({ queryKey: ["guides", categoryId] });
+              toast.success("Guide créé !");
+              navigate(`/category/${categoryId}`);
+            }}>
             Terminer et voir le guide
           </FinishButton>
         )}
       </CardFooter>
-
       {sections.length > 0 && (
         <SectionsPreview>
           <SectionsTitle>Sections créées</SectionsTitle>
           <SectionsList>
-            {sections.map((s) => (
-              <SectionItem key={s._id}>{s.title}</SectionItem>
-            ))}
+            {sections.map((s) => <SectionItem key={s._id}>{s.title}</SectionItem>)}
           </SectionsList>
         </SectionsPreview>
       )}

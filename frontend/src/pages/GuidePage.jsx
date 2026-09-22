@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { useParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import api from "../lib/axios";
 import GuideCard from "../components/GuideCard";
 import Navbar from "../components/Navbar";
@@ -16,34 +16,25 @@ import {
 
 const GuidePage = () => {
   const { categoryId } = useParams();
-  const [loading, setLoading] = useState(true);
-  const [guides, setGuides] = useState([]);
 
-  useEffect(() => {
-    if (!categoryId) return;
-    const fetchGuides = async () => {
-      try {
-        const res = await api.get(`/guides/category/${categoryId}`);
-        setGuides(res.data);
-      } catch (error) {
-        console.log("Impossible de récupérer les guides", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchGuides();
-  }, [categoryId]);
+  const { data: guides = [], isLoading } = useQuery({
+    queryKey: ["guides", categoryId],
+    queryFn: async () => {
+      const res = await api.get(`/guides/category/${categoryId}`);
+      return res.data;
+    },
+    enabled: !!categoryId,
+  });
 
   return (
     <>
       <Navbar />
       <PageContainer>
         <ContentWrapper>
-          {loading && (
+          {isLoading && (
             <StatusMessage><p>Chargement des guides...</p></StatusMessage>
           )}
-
-          {!loading && (
+          {!isLoading && (
             <>
               <SectionHeader>
                 <SectionTitle>
@@ -51,7 +42,6 @@ const GuidePage = () => {
                   {guides.length > 0 && <span>{guides.length}</span>}
                 </SectionTitle>
               </SectionHeader>
-
               {guides.length === 0 ? (
                 <StatusMessage>
                   <p>Aucun guide</p>
@@ -62,7 +52,7 @@ const GuidePage = () => {
                   <TableOfContent guides={guides} />
                   <GuidesGrid>
                     {guides.map((guide) => (
-                      <GuideCard key={guide._id} guide={guide} setGuides={setGuides} />
+                      <GuideCard key={guide._id} guide={guide} />
                     ))}
                   </GuidesGrid>
                 </ContentLayout>

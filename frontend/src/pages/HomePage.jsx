@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import api from "../lib/axios";
 import Navbar from "../components/Navbar";
 import GameCard from "../components/GameCard";
@@ -14,7 +15,6 @@ import {
 } from "../styles/HomePage.styles";
 
 const SKELETON_COUNT = 10;
-
 const SkeletonCards = () =>
   Array.from({ length: SKELETON_COUNT }).map((_, i) => (
     <SkeletonCard key={i}>
@@ -26,47 +26,31 @@ const SkeletonCards = () =>
   ));
 
 const HomePage = () => {
-  const [games, setGames] = useState([]);
-  const [filteredGames, setFilteredGames] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    document.title = "Speedrun";
-    const fetchGames = async () => {
-      try {
-        const res = await api.get("/jeux");
-        setGames(res.data);
-        setFilteredGames(res.data);
-      } catch (error) {
-        console.error("Impossible de récupérer les jeux", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchGames();
-  }, []);
+  const { data: games = [], isLoading } = useQuery({
+    queryKey: ["jeux"],
+    queryFn: async () => {
+      const res = await api.get("/jeux");
+      return res.data;
+    },
+  });
 
-  useEffect(() => {
-    const filtered = games.filter((game) =>
-      game.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredGames(filtered);
-  }, [searchQuery, games]);
+  const filteredGames = games.filter((game) =>
+    game.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <>
       <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-
       <PageContainer>
         <ContentWrapper>
-          {loading && (
+          {isLoading && (
             <LoadingGrid>
               <SkeletonCards />
             </LoadingGrid>
           )}
-
-          {!loading && (
+          {!isLoading && (
             <>
               <SectionHeader>
                 <SectionTitle>
@@ -76,7 +60,6 @@ const HomePage = () => {
                   )}
                 </SectionTitle>
               </SectionHeader>
-
               {filteredGames.length === 0 ? (
                 <StatusMessage>
                   <p>{searchQuery ? "Aucun jeu trouvé" : "Aucun jeu pour le moment"}</p>
@@ -89,7 +72,7 @@ const HomePage = () => {
               ) : (
                 <GamesGrid>
                   {filteredGames.map((game) => (
-                    <GameCard key={game._id} game={game} setGames={setGames} />
+                    <GameCard key={game._id} game={game} />
                   ))}
                 </GamesGrid>
               )}
